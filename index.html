@@ -23,7 +23,7 @@
 </div>
 
 <script>
-    // 1. Feature Detection: Ensure the browser supports the Digital Credentials API
+    // 1. Feature Detection: Ensure browser supports Digital Credentials API surface
     window.addEventListener('DOMContentLoaded', () => {
         const verifyBtn = document.getElementById('verifyBtn');
         const statusDiv = document.getElementById('status');
@@ -34,7 +34,7 @@
             verifyBtn.disabled = true;
             verifyBtn.innerText = "Unsupported Browser";
             statusDiv.style.display = "block";
-            statusDiv.innerHTML = "<strong>Error:</strong> This browser doesn't support the Digital Credentials API yet. Try latest Google Chrome on Android.";
+            statusDiv.innerHTML = "<strong>Error:</strong> Browser doesn't support Digital Credentials. Enable it in chrome://flags.";
         }
     });
 
@@ -43,17 +43,17 @@
         statusDiv.style.display = "block";
         statusDiv.innerText = "Opening wallet request...";
 
-        // 2. Updated Payload with the correct JSON path bracket syntax
+        // 2. Exact structured payload matching Google Wallet specifications
         const credentialRequestParameters = {
             response_type: "vp_token",
             client_id: window.location.origin, 
-            nonce: "sample-secure-nonce-" + Math.random().toString(36).substring(2),
+            nonce: "nonce_" + Math.random().toString(36).substring(2),
             presentation_definition: {
-                id: "passport_age_verification",
+                id: "passport_identity_verification",
                 input_descriptors: [{
-                    id: "identity_attributes",
+                    id: "org.iso.18013.5.1.mDL",
                     format: { 
-                        "mso_mdoc": { alg: ["ES256", "ES384"] } 
+                        "mso_mdoc": { alg: ["ES256"] } 
                     },
                     constraints: {
                         limit_disclosure: "required",
@@ -79,7 +79,7 @@
         try {
             let credentialResponse;
 
-            // 3. Invoke standard interface API
+            // 3. Execution using the standard Digital Credentials entry point
             if (navigator.identity?.get) {
                 credentialResponse = await navigator.identity.get({
                     digital: {
@@ -100,13 +100,13 @@
                 });
             }
 
-            // 4. Handle response payload
-            statusDiv.innerHTML = "<strong>Success! Token Received:</strong><br><pre>" + JSON.stringify(credentialResponse, null, 2) + "</pre>";
+            // 4. Output the raw token result to screen
+            statusDiv.innerHTML = "<strong>Success! Token Received:</strong><br><pre style='white-space: pre-wrap;'>" + JSON.stringify(credentialResponse, null, 2) + "</pre>";
             console.log("Wallet Token Response:", credentialResponse);
 
         } catch (error) {
             console.error("Verification failed:", error);
-            statusDiv.innerHTML = "<strong>Verification Canceled or Failed:</strong><br>" + error.message;
+            statusDiv.innerHTML = "<strong>Verification Failed:</strong><br>" + error.message;
         }
     }
 </script>
