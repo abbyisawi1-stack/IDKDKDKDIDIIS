@@ -1,9 +1,10 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Google Wallet Identity Verification Demo</title>
+    <title>Google Wallet ID Pass Verification</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; background-color: #f8f9fa; margin: 0; }
         .card { background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; max-width: 400px; width: 100%; }
@@ -16,70 +17,59 @@
 <body>
 
 <div class="card">
-    <h2>Verify Your Identity</h2>
+    <h2>Verify with ID Pass</h2>
     <p>Securely share identity attributes using your digital passport inside Google Wallet.</p>
-    <button id="verifyBtn" onclick="requestDigitalCredential()">Verify with Digital ID</button>
+    <button id="verifyBtn" onclick="requestIDPass()">Verify Identity</button>
     <div id="status"></div>
 </div>
 
 <script>
-    // 1. Feature Detection: Ensure browser supports Digital Credentials API surface
     window.addEventListener('DOMContentLoaded', () => {
         const verifyBtn = document.getElementById('verifyBtn');
         const statusDiv = document.getElementById('status');
-
         const hasDigitalCredentials = (!!navigator.identity?.get) || (!!navigator.credentials?.get);
         
         if (!hasDigitalCredentials) {
             verifyBtn.disabled = true;
             verifyBtn.innerText = "Unsupported Browser";
             statusDiv.style.display = "block";
-            statusDiv.innerHTML = "<strong>Error:</strong> Browser doesn't support Digital Credentials. Enable it in chrome://flags.";
+            statusDiv.innerHTML = "<strong>Error:</strong> Browser doesn't support Digital Credentials. Make sure chrome://flags is enabled.";
         }
     });
 
-    async function requestDigitalCredential() {
+    async function requestIDPass() {
         const statusDiv = document.getElementById('status');
         statusDiv.style.display = "block";
-        statusDiv.innerText = "Opening wallet request...";
+        statusDiv.innerText = "Connecting to Google Wallet...";
 
-        // 2. Exact structured payload matching Google Wallet specifications
+        // The exact payload definition mapping required for a Passport ID Pass
         const credentialRequestParameters = {
             response_type: "vp_token",
             client_id: window.location.origin, 
             nonce: "nonce_" + Math.random().toString(36).substring(2),
-            presentation_definition: {
-                id: "passport_identity_verification",
-                input_descriptors: [{
-                    id: "org.iso.18013.5.1.mDL",
-                    format: { 
-                        "mso_mdoc": { alg: ["ES256"] } 
-                    },
-                    constraints: {
-                        limit_disclosure: "required",
-                        fields: [
-                            { 
-                                path: ["$[\'org.iso.18013.5.1\'][\'family_name\']"], 
-                                intent_to_retain: false 
-                            },
-                            { 
-                                path: ["$[\'org.iso.18013.5.1\'][\'given_name\']"], 
-                                intent_to_retain: false 
-                            },
-                            { 
-                                path: ["$[\'org.iso.18013.5.1\'][\'age_over_21\']"], 
-                                intent_to_retain: false 
-                            }
+            dcql_query: {
+                credentials: [
+                    {
+                        id: "passport_credential",
+                        format: "mso_mdoc",
+                        meta: {
+                            // CRITICAL: Tells the system to search for your ID Pass specifically
+                            doctype_value: "com.google.wallet.idcard.1" 
+                        },
+                        claims: [
+                            { path: ["org.iso.18013.5.1", "family_name"], intent_to_retain: false },
+                            { path: ["org.iso.18013.5.1", "given_name"], intent_to_retain: false },
+                            { path: ["org.iso.18013.5.1", "age_over_21"], intent_to_retain: false }
                         ]
                     }
-                }]
+                ]
             }
         };
 
         try {
             let credentialResponse;
 
-            // 3. Execution using the standard Digital Credentials entry point
+            // Trigger the browser system identity interface
             if (navigator.identity?.get) {
                 credentialResponse = await navigator.identity.get({
                     digital: {
@@ -100,13 +90,11 @@
                 });
             }
 
-            // 4. Output the raw token result to screen
             statusDiv.innerHTML = "<strong>Success! Token Received:</strong><br><pre style='white-space: pre-wrap;'>" + JSON.stringify(credentialResponse, null, 2) + "</pre>";
-            console.log("Wallet Token Response:", credentialResponse);
 
         } catch (error) {
             console.error("Verification failed:", error);
-            statusDiv.innerHTML = "<strong>Verification Failed:</strong><br>" + error.message;
+            statusDiv.innerHTML = "<strong>Verification Error:</strong><br>" + error.message;
         }
     }
 </script>
